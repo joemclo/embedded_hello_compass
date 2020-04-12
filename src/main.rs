@@ -17,6 +17,7 @@ use f3::{
     Lsm303dlhc
 };
 use core::f32::consts::PI;
+use numtoa::NumToA;
 
 #[allow(unused_imports)]
 use m::Float;
@@ -93,14 +94,27 @@ fn main() -> ! {
         leds.iter_mut().for_each(|led| led.off());
         leds[dir].on();
 
-        // write to usart, block until sent
-        block!(tx.write(x as u8)).ok();
+        let mut x_buffer = [0u8; 20];
+        x.numtoa(10, &mut x_buffer);
 
-        // write a new line
-        for byte in b"\n\r" {
+        let mut y_buffer = [0u8; 20];
+        y.numtoa(10, &mut y_buffer);
+
+
+        // write to usart, block until sent
+        for byte in x_buffer.iter_mut() {
             block!(tx.write(*byte)).ok();
         }
 
+        block!(tx.write(b'\t')).ok();
+
+        for byte in y_buffer.iter_mut() {
+            block!(tx.write(*byte)).ok();
+        }
+
+        for byte in b"\r\n" {
+            block!(tx.write(*byte)).ok();
+        }
 
         // delay for 100ms
         delay.delay_ms(100_u16);
