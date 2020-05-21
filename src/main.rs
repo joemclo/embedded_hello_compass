@@ -27,15 +27,12 @@ use numtoa::NumToA;
 #[allow(unused_imports)]
 use m::Float;
 
-type I2C = f3::hal::i2c::I2c<
-    stm32f30x::I2C1,
-    (
-        f3::hal::gpio::gpiob::PB6<f3::hal::gpio::AF4>,
-        f3::hal::gpio::gpiob::PB7<f3::hal::gpio::AF4>,
-    ),
->;
-
-fn setup() -> (Delay, serial::Tx<stm32f30x::USART1>, f3::led::Leds, I2C) {
+fn setup() -> (
+    Delay,
+    serial::Tx<stm32f30x::USART1>,
+    f3::led::Leds,
+    Lsm303dlhc,
+) {
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = stm32f30x::Peripherals::take().unwrap();
 
@@ -53,6 +50,7 @@ fn setup() -> (Delay, serial::Tx<stm32f30x::USART1>, f3::led::Leds, I2C) {
     let scl = gpiob.pb6.into_af4(&mut gpiob.moder, &mut gpiob.afrl);
     let sda = gpiob.pb7.into_af4(&mut gpiob.moder, &mut gpiob.afrl);
     let i2c = I2c::i2c1(dp.I2C1, (scl, sda), 400.khz(), clocks, &mut rcc.apb1);
+    let lsm303dlhc = Lsm303dlhc::new(i2c).unwrap();
 
     // setup usart interface
     let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
@@ -64,14 +62,12 @@ fn setup() -> (Delay, serial::Tx<stm32f30x::USART1>, f3::led::Leds, I2C) {
     // setup delay interface
     let delay = Delay::new(cp.SYST, clocks);
 
-    (delay, tx, leds, i2c)
+    (delay, tx, leds, lsm303dlhc)
 }
 
 #[entry]
 fn main() -> ! {
-    let (mut delay, mut tx, mut leds, i2c) = setup();
-
-    let mut lsm303dlhc = Lsm303dlhc::new(i2c).unwrap();
+    let (mut delay, mut tx, mut leds, mut lsm303dlhc) = setup();
 
     leds[Direction::North].on();
     leds[Direction::South].on();
