@@ -64,6 +64,28 @@ fn setup() -> (
     (delay, tx, leds, lsm303dlhc)
 }
 
+fn get_compass_led_direction(angle : f32) -> Direction {
+    if angle < -7. * PI / 8. {
+        Direction::North
+    } else if angle < -5. * PI / 8. {
+        Direction::Northwest
+    } else if angle < -3. * PI / 8. {
+        Direction::West
+    } else if angle < -PI / 8. {
+        Direction::Southwest
+    } else if angle < PI / 8. {
+        Direction::South
+    } else if angle < 3. * PI / 8. {
+        Direction::Southeast
+    } else if angle < 5. * PI / 8. {
+        Direction::East
+    } else if angle < 7. * PI / 8. {
+        Direction::Northeast
+    } else {
+        Direction::North
+    }
+}
+
 #[entry]
 fn main() -> ! {
     let (mut delay, mut tx, mut leds, mut lsm303dlhc) = setup();
@@ -79,25 +101,7 @@ fn main() -> ! {
 
         let theta = (y as f32).atan2(x as f32);
 
-        let dir = if theta < -7. * PI / 8. {
-            Direction::North
-        } else if theta < -5. * PI / 8. {
-            Direction::Northwest
-        } else if theta < -3. * PI / 8. {
-            Direction::West
-        } else if theta < -PI / 8. {
-            Direction::Southwest
-        } else if theta < PI / 8. {
-            Direction::South
-        } else if theta < 3. * PI / 8. {
-            Direction::Southeast
-        } else if theta < 5. * PI / 8. {
-            Direction::East
-        } else if theta < 7. * PI / 8. {
-            Direction::Northeast
-        } else {
-            Direction::North
-        };
+        let dir = get_compass_led_direction(theta);
 
         leds.iter_mut().for_each(|led| led.off());
         leds[dir].on();
