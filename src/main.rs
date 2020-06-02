@@ -119,7 +119,7 @@ fn main() -> ! {
             block!(tx.write(*byte)).ok();
         }
 
-        // delay for 100ms
-        delay.delay_ms(100_u16);
+        // delay for 10ms
+        delay.delay_ms(10_u16);
     }
 }
