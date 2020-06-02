@@ -22,7 +22,6 @@ use f3::{
     lsm303dlhc::I16x3,
     Lsm303dlhc,
 };
-use numtoa::NumToA;
 
 #[allow(unused_imports)]
 use m::Float;
@@ -103,57 +102,20 @@ fn main() -> ! {
         leds.iter_mut().for_each(|led| led.off());
         leds[dir].on();
 
-        let mut buffer_x = [0u8; 10];
-        let mut buffer_y = [0u8; 10];
-        let mut buffer_z = [0u8; 10];
+        // serialize mag readings
+        let mut buf = [0; 3];
 
-        x.numtoa(10, &mut buffer_x);
-        y.numtoa(10, &mut buffer_y);
-        z.numtoa(10, &mut buffer_z);
+        buf[0] = x as u8;
+        buf[1] = y as u8;
+        buf[2] = z as u8;
 
-        let mut buffer = [0u8, 30];
 
-        let mut index = 0;
-        for byte in buffer_x.iter_mut() {
-            buffer[index] = *byte;
-
-            index += 1;
-        }
-        for byte in buffer_y.iter_mut() {
-            buffer[index] = *byte;
-
-            index += 1;
-        }
-        for byte in buffer_z.iter_mut() {
-            buffer[index] = *byte;
-
-            index += 1;
-        }
-
-        // buffer[0..19].copy_from_slice(&buffer_x);
-        // buffer[20..39].copy_from_slice(&buffer_y);
-        // buffer[40..59].copy_from_slice(&buffer_z);
-
-        // write to usart, block until sent
-        for byte in buffer.iter_mut() {
+        for byte in buf.iter_mut() {
+            // write to usart, block until sent
             block!(tx.write(*byte)).ok();
         }
 
-        block!(tx.write(b'\t')).ok();
-
-        // for byte in y_buffer.iter_mut() {
-        //     block!(tx.write(*byte)).ok();
-        // }
-
-        // block!(tx.write(b'\t')).ok();
-
-        // for byte in z_buffer.iter_mut() {
-        //     block!(tx.write(*byte)).ok();
-        // }
-
-        block!(tx.write(b'\n')).ok();
-
         // delay for 100ms
-        // delay.delay_ms(100_u16);
+        delay.delay_ms(100_u16);
     }
 }
