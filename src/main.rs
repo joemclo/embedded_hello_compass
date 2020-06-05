@@ -22,6 +22,7 @@ use f3::{
     lsm303dlhc::I16x3,
     Lsm303dlhc,
 };
+use byteorder::{ByteOrder, LittleEndian};
 
 #[allow(unused_imports)]
 use m::Float;
@@ -96,6 +97,7 @@ fn main() -> ! {
     delay.delay_ms(1000_u16);
 
     // infinite loop;
+    let mut tx_buf = [0; 8];
     loop {
         let I16x3 { x, y, z } = lsm303dlhc.mag().unwrap();
 
@@ -107,14 +109,19 @@ fn main() -> ! {
         leds[dir].on();
 
         // serialize mag readings
-        let mut buf = [0; 3];
+        let mut start = 0;
+        let mut buf = [0; 6];
+        LittleEndian::write_i16(&mut buf[start..start + 2], x);
+        start += 2;
+        LittleEndian::write_i16(&mut buf[start..start + 2], y);
+        start += 2;
+        LittleEndian::write_i16(&mut buf[start..start + 2], z);
 
-        buf[0] = x as u8;
-        buf[1] = y as u8;
-        buf[2] = z as u8;
+
+        cobs::encode(&buf, &mut tx_buf);
 
 
-        for byte in buf.iter_mut() {
+        for byte in tx_buf.iter_mut() {
             // write to usart, block until sent
             block!(tx.write(*byte)).ok();
         }
