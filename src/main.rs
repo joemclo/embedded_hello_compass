@@ -27,6 +27,15 @@ use byteorder::{ByteOrder, LittleEndian};
 #[allow(unused_imports)]
 use m::Float;
 
+const M_BIAS_X: f32 = -185.;
+const M_SCALE_X: f32 = 1.092723;
+
+const M_BIAS_Y: f32 = -163.;
+const M_SCALE_Y: f32 = 0.92178;
+
+const M_BIAS_Z: f32 = -7.5;
+const M_SCALE_Z: f32 = 1.06;
+
 fn setup() -> (
     Delay,
     serial::Tx<stm32f30x::USART1>,
@@ -101,6 +110,10 @@ fn main() -> ! {
     loop {
         let I16x3 { x, y, z } = lsm303dlhc.mag().unwrap();
 
+        let x = (x as f32 - M_BIAS_X) * M_SCALE_X;
+        let y = (y as f32 - M_BIAS_Y) * M_SCALE_Y;
+        let z = (z as f32 - M_BIAS_Z) * M_SCALE_Z;
+
         let theta = (y as f32).atan2(x as f32);
 
         let dir = get_compass_led_direction(theta);
@@ -111,11 +124,11 @@ fn main() -> ! {
         // serialize mag readings
         let mut start = 0;
         let mut buf = [0; 6];
-        LittleEndian::write_i16(&mut buf[start..start + 2], x);
+        LittleEndian::write_i16(&mut buf[start..start + 2], x as i16);
         start += 2;
-        LittleEndian::write_i16(&mut buf[start..start + 2], y);
+        LittleEndian::write_i16(&mut buf[start..start + 2], y  as i16);
         start += 2;
-        LittleEndian::write_i16(&mut buf[start..start + 2], z);
+        LittleEndian::write_i16(&mut buf[start..start + 2], z  as i16);
 
 
         cobs::encode(&buf, &mut tx_buf);
