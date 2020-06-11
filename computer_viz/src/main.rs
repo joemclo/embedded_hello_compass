@@ -13,20 +13,27 @@ fn main() {
 
     println!("Reading");
 
-    println!("x\ty\tz");
+    println!("x\ty\tz\t\tx\ty\tz");
 
     for frame in BufReader::new(socket).split(0) {
         let mut frame = frame.unwrap();
         if let Ok(length) = cobs::decode_in_place(&mut frame) {
-            if length == 6 {
+            if length == 24 {
                 let mut start = 0;
-                let x = LittleEndian::read_i16(&mut frame[start..start + 2]);
-                start += 2;
-                let y = LittleEndian::read_i16(&mut frame[start..start + 2]);
-                start += 2;
-                let z = LittleEndian::read_i16(&mut frame[start..start + 2]);
+                
+                let mag_x = LittleEndian::read_f32(&mut frame[start..start + 4]);
+                start += 4;
+                let mag_y = LittleEndian::read_f32(&mut frame[start..start + 4]);
+                start += 4;
+                let mag_z = LittleEndian::read_f32(&mut frame[start..start + 4]);
+                start += 4;
+                let acc_x = LittleEndian::read_f32(&mut frame[start..start + 4]);
+                start += 4;
+                let acc_y = LittleEndian::read_f32(&mut frame[start..start + 4]);
+                start += 4;
+                let acc_z = LittleEndian::read_f32(&mut frame[start..start + 4]);
 
-                println!("{}\t{}\t{}", x, y, z);
+                println!("{}\t{}\t{}\t\t{}\t{}\t{}", mag_x, mag_y, mag_z, acc_x, acc_y, acc_z);
             }
         }
     }

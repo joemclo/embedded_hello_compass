@@ -7,6 +7,7 @@ extern crate panic_halt;
 #[macro_use(block)]
 extern crate nb;
 
+use byteorder::{ByteOrder, LittleEndian};
 use core::f32::consts::PI;
 use cortex_m;
 use cortex_m_rt::entry;
@@ -19,10 +20,9 @@ use f3::{
         stm32f30x,
     },
     led::{Direction, Leds},
-    lsm303dlhc::I16x3,
+    lsm303dlhc::Sensitivity,
     Lsm303dlhc,
 };
-use byteorder::{ByteOrder, LittleEndian};
 
 #[allow(unused_imports)]
 use m::Float;
@@ -35,6 +35,13 @@ const M_SCALE_Y: f32 = 0.92178;
 
 const M_BIAS_Z: f32 = -7.5;
 const M_SCALE_Z: f32 = 1.06;
+const SENSITIVITY: f32 = 12. / (1 << 14) as f32;
+
+struct F32x3 {
+    x: f32,
+    y: f32,
+    z: f32,
+}
 
 fn setup() -> (
     Delay,
@@ -74,7 +81,7 @@ fn setup() -> (
     (delay, tx, leds, lsm303dlhc)
 }
 
-fn get_compass_led_direction(angle : f32) -> Direction {
+fn get_compass_led_direction(angle: f32) -> Direction {
     if angle < -7. * PI / 8. {
         Direction::North
     } else if angle < -5. * PI / 8. {
@@ -104,17 +111,26 @@ fn main() -> ! {
     leds[Direction::South].on();
 
     delay.delay_ms(1000_u16);
+    lsm303dlhc.set_accel_sensitivity(Sensitivity::G12).unwrap();
 
     // infinite loop;
-    let mut tx_buf = [0; 8];
+    let mut tx_buf = [0; 26];
     loop {
-        let I16x3 { x, y, z } = lsm303dlhc.mag().unwrap();
+        let mag_values = lsm303dlhc.mag().unwrap();
+        let mag_values = F32x3 {
+            x: (mag_values.x as f32 - M_BIAS_X) * M_SCALE_X,
+            y: (mag_values.y as f32 - M_BIAS_Y) * M_SCALE_Y,
+            z: (mag_values.z as f32 - M_BIAS_Z) * M_SCALE_Z,
+        };
 
-        let x = (x as f32 - M_BIAS_X) * M_SCALE_X;
-        let y = (y as f32 - M_BIAS_Y) * M_SCALE_Y;
-        let z = (z as f32 - M_BIAS_Z) * M_SCALE_Z;
+        let g = lsm303dlhc.accel().unwrap();
+        let accel_values = F32x3 {
+            x: g.x as f32 * SENSITIVITY,
+            y: g.y as f32 * SENSITIVITY,
+            z: g.z as f32 * SENSITIVITY,
+        };
 
-        let theta = (y as f32).atan2(x as f32);
+        let theta = (mag_values.y as f32).atan2(mag_values.x as f32);
 
         let dir = get_compass_led_direction(theta);
 
@@ -123,16 +139,21 @@ fn main() -> ! {
 
         // serialize mag readings
         let mut start = 0;
-        let mut buf = [0; 6];
-        LittleEndian::write_i16(&mut buf[start..start + 2], x as i16);
-        start += 2;
-        LittleEndian::write_i16(&mut buf[start..start + 2], y  as i16);
-        start += 2;
-        LittleEndian::write_i16(&mut buf[start..start + 2], z  as i16);
+        let mut buf = [0; 24];
 
+        LittleEndian::write_f32(&mut buf[start..start + 4], mag_values.x);
+        start += 4;
+        LittleEndian::write_f32(&mut buf[start..start + 4], mag_values.y);
+        start += 4;
+        LittleEndian::write_f32(&mut buf[start..start + 4], mag_values.z);
+        start += 4;
+        LittleEndian::write_f32(&mut buf[start..start + 4], accel_values.x);
+        start += 4;
+        LittleEndian::write_f32(&mut buf[start..start + 4], accel_values.y);
+        start += 4;
+        LittleEndian::write_f32(&mut buf[start..start + 4], accel_values.z);
 
         cobs::encode(&buf, &mut tx_buf);
-
 
         for byte in tx_buf.iter_mut() {
             // write to usart, block until sent
